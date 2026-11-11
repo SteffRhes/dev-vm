@@ -25,8 +25,8 @@ else
   incus copy $BASE_VM $VM_ID
 fi
 
-incus config device add $VM_ID shared disk source=$(pwd) path=/mnt/ 2> /dev/null
-incus config device set $VM_ID shared source=$(pwd)
+incus config device add $VM_ID share disk source=$(pwd) path=/mnt/ 2> /dev/null
+incus config device set $VM_ID share source=$(pwd)
 STATUS=$(incus info $VM_ID | grep 'Status: ')
 if [ "$STATUS" = 'Status: STOPPED' ]; then
   incus start $VM_ID
@@ -35,6 +35,8 @@ else
   echo "VM already running. Logging in"
 fi
 
+# consider this:
+# until incus exec nixos -- true 2>/dev/null; do sleep 1; done
 while [[ -z $IS_UP ]]; do
   UP_YET=$(incus exec $VM_ID -- echo up 2> /dev/null)
   if [ "$UP_YET" = "up" ]; then
