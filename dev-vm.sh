@@ -27,8 +27,12 @@ incus config device set $VM_ID shared source=$(pwd)
 incus start $VM_ID
 echo "starting ${VM_ID}. Logging in, once it's up"
 
-while true; do
-  incus exec $VM_ID -- bash
+while [[ -z $IS_UP ]]; do
+  STATE=$(incus exec $VM_ID -- echo up 2> /dev/null)
+  if [ "$STATE" = "up" ]; then
+    IS_UP=1
+  fi
   sleep 1
 done
+incus exec $VM_ID -- bash
 
