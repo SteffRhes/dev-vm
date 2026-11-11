@@ -24,12 +24,15 @@ fi
 
 incus config device add $VM_ID shared disk source=$(pwd) path=/mnt/ 2> /dev/null
 incus config device set $VM_ID shared source=$(pwd)
-incus start $VM_ID
-echo "starting ${VM_ID}. Logging in, once it's up"
+STATUS=$(incus info $VM_ID | grep 'Status: ')
+if [ "$STATUS" = 'Status: STOPPED' ]; then
+  incus start $VM_ID
+  echo "starting ${VM_ID}. Logging in, once it's up"
+fi
 
 while [[ -z $IS_UP ]]; do
-  STATE=$(incus exec $VM_ID -- echo up 2> /dev/null)
-  if [ "$STATE" = "up" ]; then
+  UP_YET=$(incus exec $VM_ID -- echo up 2> /dev/null)
+  if [ "$UP_YET" = "up" ]; then
     IS_UP=1
   fi
   sleep 1
