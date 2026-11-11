@@ -11,14 +11,17 @@ else
 fi
 
 INSTANCE_LIST=$(incus list -c n -f csv)
+FOUND=0
 for INSTANCE in $INSTANCE_LIST; do
-  FOUND=0
   if [ $INSTANCE = $VM_ID ]; then
     FOUND=1
   fi
 done
 
-if [ $FOUND = 0 ]; then
+if [ $FOUND = 1 ]; then
+  echo "Using pre-existing ${VM_ID}"
+else
+  echo "Creating new ${VM_ID}, copied from ${BASE_VM}"
   incus copy $BASE_VM $VM_ID
 fi
 
@@ -27,7 +30,9 @@ incus config device set $VM_ID shared source=$(pwd)
 STATUS=$(incus info $VM_ID | grep 'Status: ')
 if [ "$STATUS" = 'Status: STOPPED' ]; then
   incus start $VM_ID
-  echo "starting ${VM_ID}. Logging in, once it's up"
+  echo "Starting VM. Logging in, once it's up"
+else
+  echo "VM already running. Logging in"
 fi
 
 while [[ -z $IS_UP ]]; do
@@ -38,4 +43,12 @@ while [[ -z $IS_UP ]]; do
   sleep 1
 done
 incus exec $VM_ID -- bash
+
+COUNT_OP=$(incus operation list --format json | grep -o $VM_ID | wc -l)
+if [ $COUNT_OP = 1 ]; then
+  echo "shutting down ${VM_ID}"
+  incus stop $VM_ID
+else
+  echo "other operations are still running on ${VM_ID}; didn't shut it down automatically."
+fi
 
