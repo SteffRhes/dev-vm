@@ -30,20 +30,13 @@ incus config device set $VM_ID share source=$(pwd)
 STATUS=$(incus info $VM_ID | grep 'Status: ')
 if [ "$STATUS" = 'Status: STOPPED' ]; then
   incus start $VM_ID
-  echo "Starting VM. Logging in, once it's up"
+  echo "Starting VM. Logging in when it's up"
 else
   echo "VM already running. Logging in"
 fi
 
-# consider this:
-# until incus exec nixos -- true 2>/dev/null; do sleep 1; done
-while [[ -z $IS_UP ]]; do
-  UP_YET=$(incus exec $VM_ID -- echo up 2> /dev/null)
-  if [ "$UP_YET" = "up" ]; then
-    IS_UP=1
-  fi
-  sleep 1
-done
+until incus exec $VM_ID -- true 2>/dev/null; do sleep 1; done
+incus exec $VM_ID -- bash -lc 'nixos-rebuild switch'
 incus exec $VM_ID -- bash
 
 COUNT_OP=$(incus operation list --format json | grep -o $VM_ID | wc -l)
