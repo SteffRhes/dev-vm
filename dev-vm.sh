@@ -25,7 +25,7 @@ else
   incus copy $BASE_VM "$VM_ID"
 fi
 
-incus config device add "$VM_ID" share disk source=$(pwd) path=/mnt/ 2> /dev/null
+incus config device add "$VM_ID" share disk source=$(pwd) path=/mnt/share/ 2> /dev/null
 incus config device set "$VM_ID" share source=$(pwd)
 STATUS=$(incus info "$VM_ID" | grep 'Status: ')
 if [ "$STATUS" = 'Status: STOPPED' ]; then
