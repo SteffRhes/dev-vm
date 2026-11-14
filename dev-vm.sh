@@ -17,7 +17,6 @@ if [[ ! -d .claude ]]; then
   mkdir .claude/projects/
 fi
 
-
 INSTANCE_LIST=$(incus list -c n -f csv)
 FOUND=0
 for INSTANCE in $INSTANCE_LIST; do
