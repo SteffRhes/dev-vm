@@ -33,8 +33,8 @@
       # Environment
       - You are running inside a disposable NixOS VM (Incus), as root.
       - There is no apt/dnf. For a tool needed once, use `nix-shell -p <pkg> --run '<cmd>'`.
-      - Permanent packages go into /mnt/share/additions.nix, applied with `nixos-rebuild switch`.
-        You're allowed to install software and rebuild the OS yourself if the task requires it.
+      - Permanent packages go into /mnt/share/additions.nix. After adding to it, run `nixos-rebuild
+        switch` yourself.
       - Binaries live in /run/current-system/sw/bin; /usr/bin is mostly empty.
       - /mnt/share/ is a folder shared from the host. Files there are the user's real files;
         everything else in the VM can be freely changed or deleted.
