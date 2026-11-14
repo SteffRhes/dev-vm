@@ -14,7 +14,6 @@
       mode = "0600"; user = "root"; group = "root";
       argument = builtins.toJSON {
         hasCompletedOnboarding = true;
-        #theme = "light";
         projects = {
           "/mnt/share".hasTrustDialogAccepted = true;
         };
