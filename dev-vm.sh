@@ -9,6 +9,10 @@ else
   VM_ID="${BASE_VM}--${VM_ID}"
   echo "$VM_ID" > .dev-vm
 fi
+if [[ ! -d .claude ]]; then
+  mkdir .claude
+fi
+
 
 INSTANCE_LIST=$(incus list -c n -f csv)
 FOUND=0
@@ -36,7 +40,6 @@ else
 fi
 
 until incus exec "$VM_ID" -- true 2>/dev/null; do sleep 1; done
-incus exec "$VM_ID" -- bash -lc 'nixos-rebuild switch'
 incus exec "$VM_ID" -- bash
 
 COUNT_OP=$(incus operation list --format json | grep -o "$VM_ID" | wc -l)
