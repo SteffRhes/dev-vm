@@ -11,6 +11,10 @@ else
 fi
 if [[ ! -d .claude ]]; then
   mkdir .claude
+  touch .claude/history.jsonl
+  mkdir .claude/file-history/
+  mkdir .claude/plans/
+  mkdir .claude/projects/
 fi
 
 
