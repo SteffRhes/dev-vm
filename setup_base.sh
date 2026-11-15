@@ -15,7 +15,7 @@ incus config set "$BASE_VM" raw.idmap $'uid 1000 0\ngid 1000 0'
 
 echo "Starting and configuring VM"
 incus start "$BASE_VM"
-until incus exec "$BASE_VM" -- true 2>/dev/null; do sleep 1; done
+until incus exec "$BASE_VM" -- bash -lc 'systemctl is-active --quiet dbus.service' 2>/dev/null; do sleep 1; done
 incus exec "$BASE_VM" -- timedatectl set-timezone "$(timedatectl show -p Timezone --value)"
 incus file push nix/* "$BASE_VM"/etc/nixos/
 incus config set "$BASE_VM" environment.CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN"
