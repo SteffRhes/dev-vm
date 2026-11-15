@@ -4,7 +4,6 @@
     git
     htop
   ];
-
   virtualisation.docker.enable = true;
 }
 
