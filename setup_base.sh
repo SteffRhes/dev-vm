@@ -1,7 +1,6 @@
 #!/bin/bash
 
 source .env
-
 BASE_VM="nixos"
 
 incus stop "$BASE_VM" 2> /dev/null
