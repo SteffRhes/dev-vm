@@ -39,7 +39,8 @@
       - /mnt/share/ is a folder shared from the host. Files there are the user's real files;
         everything else in the VM can be freely changed or deleted.
       - Regarding communication style, avoid "claudisms" and the general LLM filler words, which
-        don't add anything to the conversation. Don't try to impress anyone or sound important. Be plain and straight to the point.
+        don't add anything to the conversation. Don't try to impress anyone or sound important. Be 
+        plain and straight to the point.
     ''}";
   };
 }
