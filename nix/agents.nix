@@ -1,9 +1,15 @@
 { modulesPath, config, lib, pkgs, ... }:
 
 {
+  environment.systemPackages = with pkgs; [
+    pi-coding-agent
+    opencode
+    claude-code
+  ];
+
+  # -- claude --------------------------------------------------------------------------------------
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [ "claude-code" ];
-  environment.systemPackages = [ pkgs.claude-code ];
   systemd.tmpfiles.settings."10-claude" = {
     "/root/.claude".d = { mode = "0700"; user = "root"; group = "root"; };
     "/root/.claude/projects"."L+".argument = "/mnt/share/.claude/projects";
@@ -44,5 +50,26 @@
       - When creating git commits, only do this in a separate branch 'agent', never on 'main' or
         'master'.
     ''}";
+  };
+
+  # -- opencode ------------------------------------------------------------------------------------
+  systemd.tmpfiles.settings."10-opencode" = {
+    "/root/.config/opencode".d = { mode = "0700"; user = "root"; group = "root"; };
+    "/root/.config/opencode/opencode.json".f = {
+      mode = "0600"; user = "root"; group = "root";
+      argument = builtins.toJSON {
+        "$schema" = "https://opencode.ai/config.json";
+        model = "dhinfra/deepseek-v4.1-flash";
+        provider.dhinfra = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "DH Infra Graz";
+          options = {
+            baseURL = "https://api.dhinfra.uni-graz.at/v1";
+            apiKey = "{env:DHINFRA_API_KEY}";
+          };
+          models."deepseek-v4.1-flash".name = "DeepSeek V4.1 Flash";
+        };
+      };
+    };
   };
 }

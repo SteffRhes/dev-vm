@@ -19,6 +19,7 @@ until incus exec "$BASE_VM" -- bash -lc 'systemctl is-active --quiet dbus.servic
 incus exec "$BASE_VM" -- timedatectl set-timezone "$(timedatectl show -p Timezone --value)"
 incus file push nix/* "$BASE_VM"/etc/nixos/
 incus config set "$BASE_VM" environment.CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN"
+incus config set "$BASE_VM" environment.DHINFRA_API_KEY="$DHINFRA_API_KEY"
 incus exec "$BASE_VM" -- bash -lc 'nixos-rebuild switch'
 incus stop "$BASE_VM"
 
