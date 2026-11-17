@@ -41,6 +41,8 @@
       - Regarding communication style, avoid "claudisms" and the general LLM filler words, which
         don't add anything to the conversation. Don't try to impress anyone or sound important. Be 
         plain and straight to the point.
+      - When creating git commits, only do this in a separate branch 'agent', never on 'main' or
+        'master'.
     ''}";
   };
 }

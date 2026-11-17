@@ -42,4 +42,12 @@
       cd /mnt/share
     fi
   '';
+
+  programs.git = {
+    enable = true;
+    config = {
+      user.name = "agent";
+      user.email = lib.mkDefault "agent";
+    };
+  };
 }
