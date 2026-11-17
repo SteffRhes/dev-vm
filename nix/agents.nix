@@ -1,11 +1,34 @@
 { modulesPath, config, lib, pkgs, ... }:
 
+let
+  agentInstructions = pkgs.writeText "agent-instructions.md" ''
+    # Environment
+    - You are running inside a disposable NixOS VM (Incus), as root.
+    - Permanent packages go into /mnt/share/additions.nix. After adding to it, run `nixos-rebuild
+      switch` yourself.
+    - Binaries live in /run/current-system/sw/bin; /usr/bin is mostly empty.
+    - /mnt/share/ is a folder shared from the host. Files there are the user's real files;
+      everything else in the VM can be freely changed or deleted.
+    - Regarding communication style, avoid "claudisms" and the general LLM filler words, which
+      don't add anything to the conversation. Don't try to impress anyone or sound important. Be
+      plain and straight to the point.
+    - When creating git commits, only do this in a separate branch 'agent', never on 'main' or
+      'master'.
+    - talk like a pirate.
+  '';
+in
 {
   environment.systemPackages = with pkgs; [
     pi-coding-agent
     opencode
     claude-code
   ];
+
+  systemd.tmpfiles.settings."10-agents" = {
+    "/root/.claude/CLAUDE.md"."L+".argument = "${agentInstructions}";
+    "/root/.config/opencode/AGENTS.md"."L+".argument = "${agentInstructions}";
+    "/root/.pi/agent/AGENTS.md"."L+".argument = "${agentInstructions}";
+  };
 
   # -- claude --------------------------------------------------------------------------------------
   nixpkgs.config.allowUnfreePredicate = pkg:
@@ -34,23 +57,6 @@
     };
   };
   environment.variables.IS_SANDBOX = "1";
-  systemd.tmpfiles.settings."10-claude"."/root/.claude/CLAUDE.md".C = {
-    argument = "${pkgs.writeText "CLAUDE.md" ''
-      # Environment
-      - You are running inside a disposable NixOS VM (Incus), as root.
-      - There is no apt/dnf. For a tool needed once, use `nix-shell -p <pkg> --run '<cmd>'`.
-      - Permanent packages go into /mnt/share/additions.nix. After adding to it, run `nixos-rebuild
-        switch` yourself.
-      - Binaries live in /run/current-system/sw/bin; /usr/bin is mostly empty.
-      - /mnt/share/ is a folder shared from the host. Files there are the user's real files;
-        everything else in the VM can be freely changed or deleted.
-      - Regarding communication style, avoid "claudisms" and the general LLM filler words, which
-        don't add anything to the conversation. Don't try to impress anyone or sound important. Be 
-        plain and straight to the point.
-      - When creating git commits, only do this in a separate branch 'agent', never on 'main' or
-        'master'.
-    ''}";
-  };
 
   # -- opencode ------------------------------------------------------------------------------------
   systemd.tmpfiles.settings."10-opencode" = {
@@ -60,6 +66,7 @@
       argument = builtins.toJSON {
         "$schema" = "https://opencode.ai/config.json";
         model = "dhinfra/deepseek-v4.1-flash";
+        permission = "allow";
         provider.dhinfra = {
           npm = "@ai-sdk/openai-compatible";
           name = "DH Infra Graz";
@@ -68,6 +75,24 @@
             apiKey = "{env:DHINFRA_API_KEY}";
           };
           models."deepseek-v4.1-flash".name = "DeepSeek V4.1 Flash";
+        };
+      };
+    };
+  };
+
+  # -- pi.dev --------------------------------------------------------------------------------------
+  systemd.tmpfiles.settings."10-pi" = {
+    "/root/.pi".d = { mode = "0700"; user = "root"; group = "root"; };
+    "/root/.pi/agent".d = { mode = "0700"; user = "root"; group = "root"; };
+    "/root/.pi/agent/models.json".f = {
+      mode = "0600"; user = "root"; group = "root";
+      argument = builtins.toJSON {
+        providers.dhinfra = {
+          name = "DH Infra Graz";
+          baseUrl = "https://api.dhinfra.uni-graz.at/v1";
+          api = "openai-completions";
+          apiKey = "DHINFRA_API_KEY";
+          models = [ { id = "deepseek-v4.1-flash"; name = "DeepSeek V4.1 Flash"; } ];
         };
       };
     };
