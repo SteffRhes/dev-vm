@@ -36,9 +36,11 @@ if (-not $image -or -not $checksum) {
 }
 
 $wslFile = Join-Path $env:TEMP "nixos-$($release.tag_name).wsl"
+$checksumFile = "$wslFile.sha256"
 Write-Host "Downloading $($release.tag_name) -> $wslFile"
-Invoke-WebRequest -Uri $image.browser_download_url -OutFile $wslFile
-$expectedHash = (Invoke-WebRequest -Uri $checksum.browser_download_url).Content.Split()[0]
+Invoke-WebRequest -Uri $image.browser_download_url -OutFile $wslFile -UseBasicParsing
+Invoke-WebRequest -Uri $checksum.browser_download_url -OutFile $checksumFile -UseBasicParsing
+$expectedHash = (Get-Content $checksumFile -Raw).Split()[0]
 $actualHash = (Get-FileHash -Path $wslFile -Algorithm SHA256).Hash
 if ($actualHash.ToLower() -ne $expectedHash.ToLower()) {
     throw "Checksum mismatch for $wslFile`nexpected: $expectedHash`nactual:   $actualHash"
