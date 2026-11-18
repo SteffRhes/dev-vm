@@ -37,6 +37,13 @@
   system.stateVersion = "26.05";
   networking.hostName = lib.mkForce "dev-vm";
 
+  apply-additions = common // {
+    description = "Rebuild NixOS with /mnt/additions.nix";
+    wantedBy = [ "mnt.mount" ];
+    after = [ "mnt.mount" "network-online.target" "rebuild-on-boot.service" ];
+    unitConfig.ConditionPathExists = "/mnt/additions.nix";
+  };
+
   environment.interactiveShellInit = ''
     if [ -d /mnt/share ] && { [ "$PWD" = "$HOME" ] || [ "$PWD" = / ]; }; then
       cd /mnt/share

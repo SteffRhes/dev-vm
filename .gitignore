@@ -1,4 +1,4 @@
 **/.dev-vm
-/.env
-/test/.claude/
+**/.env
+**/.claude/
 

@@ -23,19 +23,10 @@
       };
     in
     {
-      # every boot, with or without /mnt
       rebuild-on-boot = common // {
         description = "Rebuild NixOS on boot";
         wantedBy = [ "multi-user.target" ];
         after = [ "network-online.target" ];
-      };
-
-      # whenever /mnt gets mounted and contains additions.nix
-      apply-additions = common // {
-        description = "Rebuild NixOS with /mnt/additions.nix";
-        wantedBy = [ "mnt.mount" ];
-        after = [ "mnt.mount" "network-online.target" "rebuild-on-boot.service" ];
-        unitConfig.ConditionPathExists = "/mnt/additions.nix";
       };
     };
 }
