@@ -14,7 +14,6 @@ let
       plain and straight to the point.
     - When creating git commits, only do this in a separate branch 'agent', never on 'main' or
       'master'.
-    - talk like a pirate.
   '';
 in
 {
