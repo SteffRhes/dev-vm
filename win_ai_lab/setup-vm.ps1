@@ -27,24 +27,24 @@ $InstallDir = Join-Path $env:LOCALAPPDATA $DistroName
 $NixDir = Join-Path $PSScriptRoot "nix"
 $Repo = "nix-community/NixOS-WSL"
 
-Write-Host "Fetching latest NixOS-WSL release info..."
-$release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
-$image = $release.assets | Where-Object { $_.name -eq "nixos.wsl" }
-$checksum = $release.assets | Where-Object { $_.name -eq "nixos.wsl.sha256" }
-if (-not $image -or -not $checksum) {
-    throw "Could not find nixos.wsl / nixos.wsl.sha256 in release $($release.tag_name)"
-}
-
-$wslFile = Join-Path $env:TEMP "nixos-$($release.tag_name).wsl"
-$checksumFile = "$wslFile.sha256"
-Write-Host "Downloading $($release.tag_name) -> $wslFile"
-Invoke-WebRequest -Uri $image.browser_download_url -OutFile $wslFile -UseBasicParsing
-Invoke-WebRequest -Uri $checksum.browser_download_url -OutFile $checksumFile -UseBasicParsing
-$expectedHash = (Get-Content $checksumFile -Raw).Split()[0]
-$actualHash = (Get-FileHash -Path $wslFile -Algorithm SHA256).Hash
-if ($actualHash.ToLower() -ne $expectedHash.ToLower()) {
-    throw "Checksum mismatch for $wslFile`nexpected: $expectedHash`nactual:   $actualHash"
-}
+#Write-Host "Fetching latest NixOS-WSL release info..."
+#$release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
+#$image = $release.assets | Where-Object { $_.name -eq "nixos.wsl" }
+#$checksum = $release.assets | Where-Object { $_.name -eq "nixos.wsl.sha256" }
+#if (-not $image -or -not $checksum) {
+#    throw "Could not find nixos.wsl / nixos.wsl.sha256 in release $($release.tag_name)"
+#}
+#
+#$wslFile = Join-Path $env:TEMP "nixos-$($release.tag_name).wsl"
+#$checksumFile = "$wslFile.sha256"
+#Write-Host "Downloading $($release.tag_name) -> $wslFile"
+#Invoke-WebRequest -Uri $image.browser_download_url -OutFile $wslFile -UseBasicParsing
+#Invoke-WebRequest -Uri $checksum.browser_download_url -OutFile $checksumFile -UseBasicParsing
+#$expectedHash = (Get-Content $checksumFile -Raw).Split()[0]
+#$actualHash = (Get-FileHash -Path $wslFile -Algorithm SHA256).Hash
+#if ($actualHash.ToLower() -ne $expectedHash.ToLower()) {
+#    throw "Checksum mismatch for $wslFile`nexpected: $expectedHash`nactual:   $actualHash"
+#}
 
 $existing = wsl --list --quiet 2>$null
 if ($existing -contains $DistroName) {
