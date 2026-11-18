@@ -54,15 +54,22 @@ if ($existing -contains $DistroName) {
 
 Write-Host "Installing $DistroName into $InstallDir"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-wsl --install --from-file $wslFile --name $DistroName --location $InstallDir
-if ($LASTEXITCODE -ne 0) { throw "wsl --install failed" }
+# --import (not --install --from-file): the latter auto-launches an interactive
+# first-run shell after installing, which a non-interactive script can't use.
+wsl --import $DistroName $InstallDir $wslFile --version 2
+if ($LASTEXITCODE -ne 0) { throw "wsl --import failed" }
 
 Write-Host "Booting $DistroName for the first time"
 wsl -d $DistroName -- true
 if ($LASTEXITCODE -ne 0) { throw "first boot of $DistroName failed" }
 
+# Copy as root, from the already-mounted Windows drive (/mnt/c/...): /etc/nixos
+# is root-owned, and the Windows-side \\wsl.localhost\... share is only reachable
+# as the unprivileged default user, so Copy-Item there would fail with "access denied".
 Write-Host "Copying nix config into /etc/nixos"
-Copy-Item -Path (Join-Path $NixDir "*") -Destination "\\wsl.localhost\$DistroName\etc\nixos" -Force
+$wslNixDir = (wsl -d $DistroName -- wslpath -a "$NixDir").Trim()
+wsl -d $DistroName -u root -- bash -lc "cp -f '$wslNixDir'/* /etc/nixos/"
+if ($LASTEXITCODE -ne 0) { throw "copying nix config failed" }
 
 Write-Host "Adding nixos-unstable channel and rebuilding (this takes a while on first run)"
 $rebuildScript = @'
