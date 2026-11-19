@@ -42,6 +42,7 @@
     <nixos-wsl/modules>
     ./windows-isolation.nix
     ./agents.nix
+    ./auto-update-and-build.nix
     #./gpu-llama.nix
     #./tools.nix
   ];
