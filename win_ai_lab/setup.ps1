@@ -75,6 +75,15 @@ Write-Host "Copying $srcDir to /etc/nixos/ in '$distroName' ..."
 wsl.exe -d $distroName -u root --cd $srcDir -- cp -r ./. /etc/nixos/
 if ($LASTEXITCODE -ne 0) { throw "Copy failed (exit code $LASTEXITCODE)" }
 
+# Windows folder shared read/write with the user "agent" (mounted at /mnt/aivm).
+# windows-isolation.nix reads its Windows path from /etc/nixos/aivm-path.
+$aivmDir = Join-Path $env:USERPROFILE 'aivm'
+New-Item -ItemType Directory -Path $aivmDir -Force | Out-Null
+Write-Host "Writing /etc/nixos/aivm-path ($aivmDir) ..."
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false   # no BOM, keeps non-ASCII names
+$aivmDir | wsl.exe -d $distroName -u root -- tee /etc/nixos/aivm-path | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Writing aivm-path failed (exit code $LASTEXITCODE)" }
+
 # Build the new configuration and make it the boot default
 Write-Host "Running nixos-rebuild boot ..."
 wsl.exe -d $distroName -u root -- nixos-rebuild boot

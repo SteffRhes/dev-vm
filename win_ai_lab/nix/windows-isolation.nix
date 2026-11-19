@@ -1,17 +1,30 @@
-# Isolation of the VM from Windows and the local network.
+# Separation of the VM from Windows and the local network, and of "agent" from root.
 #
-#   agent: no Windows drives, no Windows programs, no WSLg sockets (best effort),
-#          no connections to the Windows host or the LAN (internet, DNS and
-#          127.0.0.1 inside the VM still work)
-#   root:  Windows drives under /win (c, d, ...), no Windows programs,
-#          no SMB / NetBIOS / NFS
+#   agent: regular user without any way to root (no sudo/doas/su, no wheel).
+#          Windows access only to D: (/mnt/d) and %UserProfile%\aivm (/mnt/aivm),
+#          read + write. No other Windows drives, no Windows programs, no WSLg
+#          sockets (best effort), no connections to the Windows host or the LAN
+#          (internet, DNS and 127.0.0.1 inside the VM still work).
+#   root:  only via `wsl -u root`. All Windows drives under /win (c, d, ...),
+#          no Windows programs, no SMB / NetBIOS / NFS.
 #
 # After changes: `nixos-rebuild switch` as root, then `wsl --shutdown` from Windows.
+#
+# Changing wsl.defaultUser on an existing system: apply with `nixos-rebuild boot`
+# (not switch), then `wsl --shutdown`, `wsl -d <Distro> -u root exit`, `wsl --shutdown`.
+# The previous user ("nixos") is removed from /etc/passwd; its home directory stays
+# and can be deleted manually as root.
+#
+# The Windows path of the aivm folder is read from /etc/nixos/aivm-path (one line,
+# e.g. C:\Users\<you>\aivm), which setup.ps1 writes. Without that file /mnt/aivm is
+# not mounted and the rebuild prints a warning.
 #
 # CHECKS
 #   as agent:
 #     ls /win                                   -> Permission denied
 #     ls /mnt/c                                 -> No such file or directory
+#     touch /mnt/d/x /mnt/aivm/x && rm /mnt/d/x /mnt/aivm/x   -> works
+#     sudo true; su                             -> not found / fails
 #     cmd.exe                                   -> cannot execute / not found
 #     ip route | awk '/default/ {print $3}'     -> Windows host (gateway) IP
 #     curl -m 5 http://<gateway-ip>/            -> timeout
@@ -22,21 +35,56 @@
 #                                               -> should fail (no clipboard access)
 #   as root:
 #     ls /win/c /win/d
+#     findmnt /mnt/d; findmnt /mnt/aivm
 #     systemctl status nftables
 #     nft list ruleset
 
 { config, lib, ... }:
 
 let
-  user = config.wsl.defaultUser;
-  # Numeric uid: the ruleset is checked at build time, where user names don't exist.
-  uid = config.users.users.${user}.uid;
+  user = "agent";
+  # Fixed uid: used by the firewall rules (checked at build time, where user names
+  # don't exist) and the drive mounts. Must match the existing user: check with
+  # `id -u agent` before changing.
+  uid = 1000;
+  gid = config.users.groups.users.gid;   # agent's primary group "users" (100)
+
+  # Mount options for the folders agent may use: owned by agent, nobody else
+  # (except root) has access. "metadata" is left out on purpose (see /win below),
+  # so chmod/chown on these mounts have no effect.
+  agentDrvfs = [ "uid=${toString uid}" "gid=${toString gid}" "umask=077" "nofail" ];
+
+  aivmPathFile = ./aivm-path;
+  aivmPath =
+    if builtins.pathExists aivmPathFile
+    then lib.strings.trim (builtins.readFile aivmPathFile)
+    else null;
 in
 {
-  assertions = [{
-    assertion = uid != null;
-    message = "windows-isolation.nix: set users.users.${user}.uid explicitly (see `id -u ${user}`).";
-  }];
+  ##########################################################################
+  # Users: agent without root rights, root only via `wsl -u root`
+  ##########################################################################
+  wsl.defaultUser = user;
+
+  users.users.${user} = {
+    inherit uid;
+
+    # NixOS-WSL puts the default user into "wheel"; remove all extra groups.
+    # Do not add root-equivalent groups here (wheel, docker, libvirtd, lxd).
+    extraGroups = lib.mkForce [ ];
+  };
+
+  # No privilege escalation tools
+  security.sudo.enable = false;
+  security.sudo-rs.enable = false;
+  security.doas.enable = false;
+  security.pam.services.su.requireWheel = true;
+
+  # Root has no usable password; WSL logs in as root without one (`wsl -u root`).
+  users.users.root.hashedPassword = "!";
+
+  # Trusted Nix users are effectively root.
+  nix.settings.trusted-users = [ "root" ];
 
   ##########################################################################
   # Windows interop: off for everyone
@@ -51,7 +99,7 @@ in
   wsl.startMenuLaunchers = false;
 
   ##########################################################################
-  # Windows drives: root only, under /win
+  # Windows drives: all of them root only, under /win
   ##########################################################################
   # Two layers: /win itself is root-only (0700), and the drive files appear
   # root-owned with no permissions for others. "metadata" is left out on purpose:
@@ -76,6 +124,31 @@ in
     # keep agent out of it too. Ignored if /mnt/wslg does not exist.
     "z /mnt/wslg 0700 root root -"
   ];
+
+  ##########################################################################
+  # Windows folders for agent (read + write): /mnt/d and /mnt/aivm
+  ##########################################################################
+  # Separate drvfs mounts (not bind mounts of /win/...), since drvfs fixes the
+  # owner per mount: here agent, under /win root. Mounted by systemd at boot;
+  # "nofail" keeps the boot going if D: or the folder is missing.
+  # Everything agent writes here is a real Windows file: Windows (and you) may
+  # open or run it later, so treat it as untrusted.
+  fileSystems = {
+    "/mnt/d" = {
+      device = "D:";
+      fsType = "drvfs";
+      options = agentDrvfs;
+    };
+  } // lib.optionalAttrs (aivmPath != null) {
+    "/mnt/aivm" = {
+      device = aivmPath;
+      fsType = "drvfs";
+      options = agentDrvfs;
+    };
+  };
+
+  warnings = lib.optional (aivmPath == null)
+    "windows-isolation.nix: /etc/nixos/aivm-path is missing, /mnt/aivm is not mounted (run setup.ps1 or create it with the Windows path, e.g. C:\\Users\\<you>\\aivm).";
 
   # WSLg (Linux GUI apps on the Windows desktop, shared clipboard, audio):
   # WSLg lives under the automount root (/win/wslg), which only root can enter.

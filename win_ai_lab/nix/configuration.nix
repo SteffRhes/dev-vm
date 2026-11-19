@@ -2,8 +2,10 @@
 #
 # Files (all in /etc/nixos/):
 #   configuration.nix        this file: base + imports
-#   windows-isolation.nix    interop off, drives root-only under /win, network rules
-#   users.nix                non-root user "agent", root only via `wsl -u root`
+#   windows-isolation.nix    user "agent" (no root rights, root only via `wsl -u root`),
+#                            interop off, drives root-only under /win except
+#                            D: -> /mnt/d and %UserProfile%\aivm -> /mnt/aivm for agent,
+#                            network rules
 #   gpu-llama.nix            Windows GPU driver passthrough + llama.cpp (CUDA),
 #                            llama-server user service + `oc` command
 #   opencode.nix             OpenCode, connected to the local llama-server
@@ -39,7 +41,6 @@
   imports = [
     <nixos-wsl/modules>
     ./windows-isolation.nix
-    ./users.nix
     #./gpu-llama.nix
     #./opencode.nix
     #./tools.nix
