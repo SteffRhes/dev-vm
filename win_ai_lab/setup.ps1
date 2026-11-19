@@ -74,6 +74,14 @@ Write-Host "Copying $srcDir to /etc/nixos/ in '$distroName' ..."
 wsl.exe -d $distroName -u root --cd $srcDir -- cp -r ./. /etc/nixos/
 if ($LASTEXITCODE -ne 0) { throw "Copy failed (exit code $LASTEXITCODE)" }
 
+# Windows editors may save the files with CRLF line endings. Inside '' strings the
+# CR ends up in generated shell scripts (e.g. "fi\r"), which then fail to build.
+# --exec runs the command without a shell (so the arguments arrive unchanged) and
+# without NixOS' PATH, hence the absolute paths.
+$sw = '/run/current-system/sw/bin'
+wsl.exe -d $distroName -u root --exec "$sw/find" /etc/nixos -name '*.nix' -exec "$sw/sed" -i 's/\r$//' '{}' '+'
+if ($LASTEXITCODE -ne 0) { throw "Converting line endings failed (exit code $LASTEXITCODE)" }
+
 # Windows folder shared read/write with the user "agent" (mounted at /mnt/aivm).
 # windows-isolation.nix reads its Windows path from /etc/nixos/aivm-path.
 $aivmDir = Join-Path $env:USERPROFILE 'aivm'
@@ -83,9 +91,13 @@ $OutputEncoding = New-Object System.Text.UTF8Encoding $false   # no BOM, keeps n
 $aivmDir | wsl.exe -d $distroName -u root -- tee /etc/nixos/aivm-path | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Writing aivm-path failed (exit code $LASTEXITCODE)" }
 
-# Build the new configuration and make it the boot default
+# Build the new configuration and make it the boot default.
+# The CUDA cache is passed on the command line: the nix.settings in gpu-llama.nix
+# only take effect after this build. Without it, llama.cpp (CUDA) is compiled locally.
 Write-Host "Running nixos-rebuild boot ..."
-wsl.exe -d $distroName -u root -- nixos-rebuild boot
+wsl.exe -d $distroName -u root -- nixos-rebuild boot `
+    --option extra-substituters https://cache.nixos-cuda.org `
+    --option extra-trusted-public-keys 'cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M='
 if ($LASTEXITCODE -ne 0) { throw "nixos-rebuild failed (exit code $LASTEXITCODE)" }
 
 # Two restarts are needed. WSL reads /etc/wsl.conf (default user, automount root

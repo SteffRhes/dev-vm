@@ -43,8 +43,7 @@
     ./windows-isolation.nix
     ./agents.nix
     ./autobuild.nix
-    #./gpu-llama.nix
-    #./tools.nix
+    ./gpu-llama.nix
   ];
 
   wsl.enable = true;

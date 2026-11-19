@@ -16,7 +16,7 @@
 #   systemctl --user status llama-server
 #   journalctl --user -u llama-server -f
 #
-# The service does not start on its own; see `wantedBy` below to start it at login.
+# The service starts automatically when agent logs in; see `wantedBy` below.
 # `alias` and `context` must match opencode.nix (model key and limit.context).
 
 { pkgs, ... }:
@@ -27,7 +27,9 @@ let
   llamaCpp = pkgs.llama-cpp.override { cudaSupport = true; };
 
   # Server settings
-  modelPath = "%h/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q4_K_M.gguf";  # %h = home dir
+  # On D: (see windows-isolation.nix); loading over drvfs is slower than from the
+  # VM's own disk. Use %h/... for a copy in agent's home instead (%h = home dir).
+  modelPath = "/mnt/d/LMStudio/models/lmstudio-community/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q4_K_M.gguf";
   alias = "qwen3.8-27b";
   context = "65536";
   port = "8080";
@@ -93,8 +95,9 @@ in
     description = "llama.cpp server (local model for opencode)";
     unitConfig.ConditionUser = "agent";   # never start in root's user session
 
-    # Start automatically when agent logs in (keeps ~20 GB VRAM in use):
-    # wantedBy = [ "default.target" ];
+    # Start automatically when agent's user session starts (keeps ~20 GB VRAM in use).
+    # To start it at VM boot without a login, also set users.users.agent.linger = true.
+    wantedBy = [ "default.target" ];
 
     # User services do not reliably get session variables; set the driver path here.
     environment.LD_LIBRARY_PATH = "/usr/lib/wsl/lib";
