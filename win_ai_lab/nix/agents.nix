@@ -3,11 +3,9 @@
 let
   agentInstructions = pkgs.writeText "agent-instructions.md" ''
     # Environment
-    - You are running inside a disposable NixOS VM (Incus), as root.
-    - Permanent packages go into /mnt/share/additions.nix. After adding to it, run `nixos-rebuild
-      switch` yourself.
+    - You are running inside a disposable NixOS VM (WSL), as user 'agent'.
     - Binaries live in /run/current-system/sw/bin; /usr/bin is mostly empty.
-    - /mnt/share/ is a folder shared from the host. Files there are the user's real files;
+    - /mnt/aivm/ is a folder shared from the host. Files there are the user's real files;
       everything else in the VM can be freely changed or deleted.
     - Regarding communication style, avoid "claudisms" and the general LLM filler words, which
       don't add anything to the conversation. Don't try to impress anyone or sound important. Be
@@ -34,16 +32,16 @@ in
     builtins.elem (lib.getName pkg) [ "claude-code" ];
   systemd.tmpfiles.settings."10-claude" = {
     "/root/.claude".d = { mode = "0700"; user = "root"; group = "root"; };
-    "/root/.claude/projects"."L+".argument = "/mnt/share/.claude/projects";
-    "/root/.claude/history.jsonl"."L+".argument = "/mnt/share/.claude/history.jsonl";
-    "/root/.claude/file-history"."L+".argument = "/mnt/share/.claude/file-history";
-    "/root/.claude/plans"."L+".argument = "/mnt/share/.claude/plans";
+    "/root/.claude/projects"."L+".argument = "/mnt/aivm/.claude/projects";
+    "/root/.claude/history.jsonl"."L+".argument = "/mnt/aivm/.claude/history.jsonl";
+    "/root/.claude/file-history"."L+".argument = "/mnt/aivm/.claude/file-history";
+    "/root/.claude/plans"."L+".argument = "/mnt/aivm/.claude/plans";
     "/root/.claude.json".f = {
       mode = "0600"; user = "root"; group = "root";
       argument = builtins.toJSON {
         hasCompletedOnboarding = true;
         projects = {
-          "/mnt/share".hasTrustDialogAccepted = true;
+          "/mnt/aivm".hasTrustDialogAccepted = true;
         };
       };
     };
