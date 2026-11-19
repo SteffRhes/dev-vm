@@ -41,8 +41,8 @@
   imports = [
     <nixos-wsl/modules>
     ./windows-isolation.nix
+    ./agents.nix
     #./gpu-llama.nix
-    #./opencode.nix
     #./tools.nix
   ];
 

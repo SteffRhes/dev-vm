@@ -159,25 +159,21 @@ in
   #   guiApplications=false
   systemd.units."tmp-.X11\\x2dunix-X0.mount".enable = lib.mkForce false;
 
-  # DNS: WSL links /etc/resolv.conf to <automount root>/wsl/resolv.conf, i.e.
-  # /win/wsl/resolv.conf, which agent cannot read (no DNS for agent).
-  # Copy it to /etc/resolv.conf as a normal, world-readable file at every start.
-  # Keeps the DNS server WSL assigns (DNS tunneling, VPN, company DNS).
-  # If Windows' network changes while the VM runs: systemctl restart wsl-resolv-conf
-  systemd.services.wsl-resolv-conf = {
-    description = "Copy WSL resolv.conf out of /win so all users can read it";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "local-fs.target" ];
-    before = [ "network.target" "nss-lookup.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      if [ -f /win/wsl/resolv.conf ]; then
-        install -m 0644 /win/wsl/resolv.conf /etc/resolv.conf.new
-        mv -f /etc/resolv.conf.new /etc/resolv.conf
-      fi
+  # DNS: by default WSL links /etc/resolv.conf to <automount root>/wsl/resolv.conf,
+  # i.e. /win/wsl/resolv.conf, and re-creates that link at every session start.
+  # Behind /win (0700) only root can read it, so DNS fails for agent and for nsncd
+  # (the glibc name lookup daemon), i.e. effectively for everyone.
+  # Instead, WSL stops generating it and /etc/resolv.conf is a fixed file pointing
+  # to WSL's DNS tunneling resolver. 10.255.255.254 is fixed by WSL (DNS tunneling
+  # is the default since WSL 2.2) and forwards to Windows' DNS, so VPN and company
+  # DNS keep working. If dnsTunneling=false is set in .wslconfig, use the gateway
+  # IP instead (`ip route | awk '/default/ {print $3}'`).
+  wsl.wslConf.network.generateResolvConf = false;
+  networking.resolvconf.enable = false;
+  environment.etc."resolv.conf" = lib.mkForce {
+    mode = "0644";   # a real file, replaces WSL's old symlink into /win
+    text = ''
+      nameserver 10.255.255.254
     '';
   };
 
