@@ -54,10 +54,13 @@ let
   # so chmod/chown on these mounts have no effect.
   agentDrvfs = [ "uid=${toString uid}" "gid=${toString gid}" "umask=077" "nofail" ];
 
+  # Written by setup.ps1 through a PowerShell pipe, which adds a UTF-8 BOM and CRLF:
+  # strip both.
   aivmPathFile = ./aivm-path;
+  bom = builtins.fromJSON ''"﻿"'';
   aivmPath =
     if builtins.pathExists aivmPathFile
-    then lib.strings.trim (builtins.readFile aivmPathFile)
+    then lib.strings.trim (lib.replaceStrings [ bom ] [ "" ] (builtins.readFile aivmPathFile))
     else null;
 in
 {
