@@ -40,9 +40,9 @@
     <nixos-wsl/modules>
     ./windows-isolation.nix
     ./users.nix
-    ./gpu-llama.nix
-    ./opencode.nix
-    ./tools.nix
+    #./gpu-llama.nix
+    #./opencode.nix
+    #./tools.nix
   ];
 
   wsl.enable = true;
