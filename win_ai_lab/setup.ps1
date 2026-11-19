@@ -59,7 +59,6 @@ New-Item -ItemType Directory -Path $distroDir -Force | Out-Null
 Write-Host "Installing '$distroName' from $file ..."
 wsl.exe --install --from-file $file --name $distroName --location $distroDir --no-launch
 if ($LASTEXITCODE -ne 0) { throw "wsl --install failed (exit code $LASTEXITCODE)" }
-Write-Host "Done. Start it with: wsl -d $distroName"
 
 
 # set up nixos
@@ -89,6 +88,18 @@ Write-Host "Running nixos-rebuild boot ..."
 wsl.exe -d $distroName -u root -- nixos-rebuild boot
 if ($LASTEXITCODE -ne 0) { throw "nixos-rebuild failed (exit code $LASTEXITCODE)" }
 
-# 'boot' only takes effect at the next start, so stop the instance now
-wsl.exe --terminate $distroName
+# Two restarts are needed. WSL reads /etc/wsl.conf (default user, automount root
+# /win, interop) when the instance starts, before NixOS activates. On the first
+# start the new generation activates and writes the new wsl.conf, but this start
+# still ran with the old one (drives under /mnt/c, ...). Only the second start
+# runs fully with the new config. Use --shutdown, not --terminate (see
+# configuration.nix); it stops all running WSL distros.
+Write-Host "Activating the new configuration (restart 1/2) ..."
+wsl.exe --shutdown
+wsl.exe -d $distroName -u root -- true
+if ($LASTEXITCODE -ne 0) { throw "First start failed (exit code $LASTEXITCODE)" }
+
+Write-Host "Restarting with the new wsl.conf (restart 2/2) ..."
+wsl.exe --shutdown
+Write-Host "Done. Start it with: wsl -d $distroName"
 
