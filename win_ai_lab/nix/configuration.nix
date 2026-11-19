@@ -8,13 +8,14 @@
 #                            network rules
 #   gpu-llama.nix            Windows GPU driver passthrough + llama.cpp (CUDA),
 #                            llama-server user service + `oc` command
-#   opencode.nix             OpenCode, connected to the local llama-server
-#   tools.nix                git, vim
+#   agents.nix               coding agents (pi, OpenCode from nixos-unstable, Claude Code)
+#                            and their configs
+#   autobuild.nix            `nixos-rebuild switch` at every boot
 #
 # FIRST-TIME SETUP ON A FRESH NixOS-WSL (default user is still "nixos" with sudo)
 #   1. Copy the files to /etc/nixos/
 #      (keep system.stateVersion at the value your fresh install had).
-#      Add the unstable channel (used for OpenCode, see opencode.nix):
+#      Add the unstable channel (used for OpenCode, see agents.nix):
 #        sudo nix-channel --add https://channels.nixos.org/nixos-unstable nixos-unstable
 #        sudo nix-channel --update
 #   2. Build once with the CUDA cache passed on the command line:

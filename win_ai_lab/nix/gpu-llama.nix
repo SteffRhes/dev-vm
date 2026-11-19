@@ -17,7 +17,8 @@
 #   journalctl --user -u llama-server -f
 #
 # The service starts automatically when agent logs in; see `wantedBy` below.
-# `alias` and `context` must match opencode.nix (model key and limit.context).
+# If an OpenCode provider points at this server, `alias` and `context` must match
+# its model key and limit.context.
 
 { pkgs, ... }:
 

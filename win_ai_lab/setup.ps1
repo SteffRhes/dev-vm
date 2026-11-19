@@ -91,6 +91,13 @@ $OutputEncoding = New-Object System.Text.UTF8Encoding $false   # no BOM, keeps n
 $aivmDir | wsl.exe -d $distroName -u root -- tee /etc/nixos/aivm-path | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Writing aivm-path failed (exit code $LASTEXITCODE)" }
 
+# nixos-unstable channel: agents.nix takes OpenCode from it (the 26.05 one segfaults).
+Write-Host "Adding the nixos-unstable channel ..."
+wsl.exe -d $distroName -u root -- nix-channel --add https://channels.nixos.org/nixos-unstable nixos-unstable
+if ($LASTEXITCODE -ne 0) { throw "nix-channel --add failed (exit code $LASTEXITCODE)" }
+wsl.exe -d $distroName -u root -- nix-channel --update
+if ($LASTEXITCODE -ne 0) { throw "nix-channel --update failed (exit code $LASTEXITCODE)" }
+
 # Build the new configuration and make it the boot default.
 # The CUDA cache is passed on the command line: the nix.settings in gpu-llama.nix
 # only take effect after this build. Without it, llama.cpp (CUDA) is compiled locally.

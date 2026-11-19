@@ -1,6 +1,18 @@
 { modulesPath, config, lib, pkgs, ... }:
 
 let
+  # OpenCode comes from nixos-unstable: the version in nixos-26.05 segfaults at startup.
+  # Requires the channel (as root, once; setup.ps1 does this):
+  #   nix-channel --add https://channels.nixos.org/nixos-unstable nixos-unstable
+  #   nix-channel --update
+  # Updating OpenCode later: `nix-channel --update` + `nixos-rebuild switch` (as root).
+  unstable = import <nixos-unstable> { system = pkgs.stdenv.hostPlatform.system; };
+
+  # All agents run as "agent"; their configs live in its home.
+  user = "agent";
+  group = config.users.users.${user}.group;
+  home = config.users.users.${user}.home;
+
   agentInstructions = pkgs.writeText "agent-instructions.md" ''
     # Environment
     - You are running inside a disposable NixOS VM (WSL), as user 'agent'.
@@ -17,27 +29,30 @@ in
 {
   environment.systemPackages = with pkgs; [
     pi-coding-agent
-    opencode
+    unstable.opencode   # see `unstable` above
     claude-code
   ];
 
   systemd.tmpfiles.settings."10-agents" = {
-    "/root/.claude/CLAUDE.md"."L+".argument = "${agentInstructions}";
-    "/root/.config/opencode/AGENTS.md"."L+".argument = "${agentInstructions}";
-    "/root/.pi/agent/AGENTS.md"."L+".argument = "${agentInstructions}";
+    # Create ~/.config owned by agent; otherwise tmpfiles would create it as root.
+    "${home}/.config".d = { mode = "0700"; inherit user group; };
+
+    "${home}/.claude/CLAUDE.md"."L+".argument = "${agentInstructions}";
+    "${home}/.config/opencode/AGENTS.md"."L+".argument = "${agentInstructions}";
+    "${home}/.pi/agent/AGENTS.md"."L+".argument = "${agentInstructions}";
   };
 
   # -- claude --------------------------------------------------------------------------------------
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [ "claude-code" ];
   systemd.tmpfiles.settings."10-claude" = {
-    "/root/.claude".d = { mode = "0700"; user = "root"; group = "root"; };
-    "/root/.claude/projects"."L+".argument = "/mnt/aivm/.claude/projects";
-    "/root/.claude/history.jsonl"."L+".argument = "/mnt/aivm/.claude/history.jsonl";
-    "/root/.claude/file-history"."L+".argument = "/mnt/aivm/.claude/file-history";
-    "/root/.claude/plans"."L+".argument = "/mnt/aivm/.claude/plans";
-    "/root/.claude.json".f = {
-      mode = "0600"; user = "root"; group = "root";
+    "${home}/.claude".d = { mode = "0700"; inherit user group; };
+    "${home}/.claude/projects"."L+".argument = "/mnt/aivm/.claude/projects";
+    "${home}/.claude/history.jsonl"."L+".argument = "/mnt/aivm/.claude/history.jsonl";
+    "${home}/.claude/file-history"."L+".argument = "/mnt/aivm/.claude/file-history";
+    "${home}/.claude/plans"."L+".argument = "/mnt/aivm/.claude/plans";
+    "${home}/.claude.json".f = {
+      mode = "0600"; inherit user group;
       argument = builtins.toJSON {
         hasCompletedOnboarding = true;
         projects = {
@@ -45,8 +60,8 @@ in
         };
       };
     };
-    "/root/.claude/settings.json".f = {
-      mode = "0600"; user = "root"; group = "root";
+    "${home}/.claude/settings.json".f = {
+      mode = "0600"; inherit user group;
       argument = builtins.toJSON {
         permissions.defaultMode = "bypassPermissions";
         skipDangerousModePermissionPrompt = true;
@@ -57,9 +72,9 @@ in
 
   # -- opencode ------------------------------------------------------------------------------------
   systemd.tmpfiles.settings."10-opencode" = {
-    "/root/.config/opencode".d = { mode = "0700"; user = "root"; group = "root"; };
-    "/root/.config/opencode/opencode.json".f = {
-      mode = "0600"; user = "root"; group = "root";
+    "${home}/.config/opencode".d = { mode = "0700"; inherit user group; };
+    "${home}/.config/opencode/opencode.json".f = {
+      mode = "0600"; inherit user group;
       argument = builtins.toJSON {
         "$schema" = "https://opencode.ai/config.json";
         model = "dhinfra/deepseek-v4.1-flash";
@@ -73,16 +88,29 @@ in
           };
           models."deepseek-v4.1-flash".name = "DeepSeek V4.1 Flash";
         };
+        # Local llama-server from gpu-llama.nix (select it in OpenCode with /models).
+        provider.llamacpp = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "llama-server (local)";
+          options.baseURL = "http://127.0.0.1:8080/v1";   # gpu-llama.nix: port
+          models."qwen3.8-27b" = {                         # gpu-llama.nix: alias
+            name = "Qwen3.8 27B (local)";
+            limit = {
+              context = 65536;                             # gpu-llama.nix: context
+              output = 8192;
+            };
+          };
+        };
       };
     };
   };
 
   # -- pi.dev --------------------------------------------------------------------------------------
   systemd.tmpfiles.settings."10-pi" = {
-    "/root/.pi".d = { mode = "0700"; user = "root"; group = "root"; };
-    "/root/.pi/agent".d = { mode = "0700"; user = "root"; group = "root"; };
-    "/root/.pi/agent/models.json".f = {
-      mode = "0600"; user = "root"; group = "root";
+    "${home}/.pi".d = { mode = "0700"; inherit user group; };
+    "${home}/.pi/agent".d = { mode = "0700"; inherit user group; };
+    "${home}/.pi/agent/models.json".f = {
+      mode = "0600"; inherit user group;
       argument = builtins.toJSON {
         providers.dhinfra = {
           name = "DH Infra Graz";
